@@ -23,6 +23,7 @@ app.use((req, res, next) => {
 app.use('/registracija', users);
 app.use('/saigraci', users);
 app.use('/nalog', users);
+app.use('/nalog/:id', users);
 app.use('/forum', posts);
 app.use("/podrska", supports)
 app.use("/profil/:id", users)
