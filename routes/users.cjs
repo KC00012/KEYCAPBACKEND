@@ -5,6 +5,34 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
+// Helper function to validate fields
+function validateFields(fields) {
+   const { name, desc, pw, color, en, bug, donator, rank, game, discord, discord2, xb, ps, ig } = fields;
+
+   if (!name || !desc || !pw || !color || !en || !game) {
+      return "Name, description, password, color, English language, and game fields are required.";
+   }
+
+   if (typeof bug !== 'boolean' || bug !== false) {
+      return "Bug must be set to false on account creation.";
+   }
+
+   if (typeof donator !== 'boolean' || donator !== false) {
+      return "Donator must be set to false on account creation.";
+   }
+
+   if (rank !== 'default') {
+      return "Rank must be set to 'default' on account creation.";
+   }
+
+   // At least one of these fields must be provided
+   if (!discord && !discord2 && !xb && !ps && !ig) {
+      return "At least one of the following fields is required: Discord, Discord2, Xbox, PlayStation, Instagram.";
+   }
+
+   return null;
+}
+
 // Get all users
 router.get('/', (req, res) => {
    User.find().then(users => {
@@ -30,13 +58,19 @@ router.get('/:_id', (req, res) => {
    });
 });
 
-// Register a new user with password hashing
+// Register a new user with password hashing and validation
 router.post('/', async (req, res) => {
-   const { name, pw } = req.body;
+   const { name, pw, desc, color, en, game, discord, discord2, xb, ps, ig } = req.body;
 
    if (req.originalUrl === '/registracija') {
-      // Registration logic
-      const { desc, color, en, bug, donator, rank, game, discord, discord2, xb, ps, ig } = req.body;
+      // Registration logic with validation
+      const validationError = validateFields({
+         name, desc, pw, color, en, game, bug: false, donator: false, rank: 'default', discord, discord2, xb, ps, ig
+      });
+
+      if (validationError) {
+         return res.status(400).json({ message: validationError });
+      }
 
       try {
          // Check if the username already exists
@@ -54,9 +88,9 @@ router.post('/', async (req, res) => {
             pw: hashedPassword, // Save the hashed password
             color,
             en,
-            bug,
-            donator,
-            rank,
+            bug: false, // Set default values
+            donator: false,
+            rank: 'default',
             game,
             discord,
             discord2,
@@ -95,8 +129,14 @@ router.post('/', async (req, res) => {
             isLoggedIn: true
          };
          const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '60d' });
+         res.cookie('token', token, {
+            httpOnly: true, // Prevent JavaScript access to the cookie
+            secure: process.env.NODE_ENV === 'production', // Use HTTPS in production
+            sameSite: 'Strict', // Prevent CSRF
+            maxAge: 60 * 60 * 24 * 60 * 1000 // 60 days
+         });
+         res.status(200).json({ user });
 
-         res.status(200).json({ user, token });
       } catch (error) {
          res.status(500).json({ error: error.message });
       }
